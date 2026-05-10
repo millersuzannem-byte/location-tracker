@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- PWA / iOS home screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Loc Tracker">
+  <meta name="theme-color" content="#1e293b">
+  <link rel="manifest" href="data:application/manifest+json,{&quot;name&quot;:&quot;Work Location Tracker&quot;,&quot;short_name&quot;:&quot;Loc Tracker&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1e293b&quot;,&quot;theme_color&quot;:&quot;#1e293b&quot;,&quot;start_url&quot;:&quot;./&quot;}">
+  <title>Work Location Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --subtle: #94a3b8;
+      --good: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
+      --indigo: #4f46e5;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: #1e293b;
+      color: #fff;
+      padding: 0 22px;
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; flex-direction: column; }
+    .header-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: -.01em; }
+    .header-subtitle { font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 1px; }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      padding: 6px 13px;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 13px; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 5px;
+      transition: all .15s; line-height: 1.4;
+    }
+    .btn-secondary { background: rgba(255,255,255,.13); color: #fff; border: 1px solid rgba(255,255,255,.2); }
+    .btn-secondary:hover { background: rgba(255,255,255,.22); }
+    .btn-primary { background: var(--indigo); color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: #f8fafc; color: var(--text); }
+    .btn-danger { background: #fee2e2; color: var(--bad); }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+    .btn-icon {
+      width: 32px; height: 32px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); transition: all .15s;
+    }
+    .btn-icon:hover { background: #f1f5f9; color: var(--text); border-color: #cbd5e1; }
+
+    /* ─── LAYOUT ─── */
+    .main {
+      display: flex;
+      gap: 16px;
+      padding: 14px 20px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ─── CALENDAR SECTION ─── */
+    .calendar-section {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .cal-nav {
+      background: #fff;
+      border-radius: 12px;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      flex-shrink: 0;
+    }
+    .cal-nav-left { display: flex; align-items: center; gap: 7px; }
+    .cal-nav-right { display: flex; align-items: center; gap: 12px; }
+
+    .legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+    .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .leg-dot.planned { background: transparent; border: 2px dashed #999; border-radius: 3px; width: 13px; height: 9px; }
+    .leg-dot.window  { background: #dde4ff; border-radius: 2px; }
+    .leg-dot.pto     { background: #f59e0b; }
+
+    /* ─── MULTI-MONTH SCROLL ─── */
+    .cal-scroll {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 4px;
+      /* custom scrollbar */
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+    .cal-scroll::-webkit-scrollbar { width: 6px; }
+    .cal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    .month-section {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .month-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+      padding: 9px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -.01em;
+    }
+
+    /* ─── 9-COLUMN GRID ─── */
+    /* cols: [week-btn 34px] [Sun-Sat 7×1fr] [stats 60px] */
+    .cal-head-9 {
+      display: grid;
+      grid-template-columns: 34px repeat(7, 1fr) 60px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+    }
+    .cal-head-corner, .cal-head-stats {
+      padding: 6px 3px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--subtle);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .cal-head-cell {
+      padding: 6px 3px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: 34px repeat(7, 1fr) 60px;
+    }
+
+    /* ─── WEEK BUTTON CELL ─── */
+    .week-btn-cell {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 5px 3px;
+      border-right: 1px solid #e8ecf4;
+      border-bottom: 1px solid #f1f5f9;
+      background: #f7f9fc;
+    }
+    .week-set-btn {
+      width: 24px; height: 24px;
+      border: 1px solid #dde3ec;
+      border-radius: 5px;
+      background: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #b0bbc9;
+      transition: all .15s;
+      padding: 0;
+    }
+    .week-set-btn:hover {
+      background: var(--indigo);
+      color: #fff;
+      border-color: var(--indigo);
+      box-shadow: 0 2px 6px rgba(79,70,229,.3);
+    }
+
+    /* ─── DAY CELLS ─── */
+    .cal-day {
+      min-height: 60px;
+      padding: 5px 6px;
+      border-right: 1px solid #f1f5f9;
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .cal-day:hover { background: #f7f9fc; }
+    .cal-day.weekend { background: #fafafa; }
+    .cal-day.weekend:hover { background: #f3f4f6; }
+    .cal-day.other-month { opacity: .28; pointer-events: none; }
+    .cal-day.in-window { background: #f4f6ff; }
+    .cal-day.in-window.weekend { background: #ecefff; }
+    .cal-day.in-window:hover { background: #eceffe; }
+    .cal-day.today .day-num { background: var(--indigo); color: #fff; }
+
+    .day-num {
+      font-size: 11px; font-weight: 600; color: #475569;
+      width: 21px; height: 21px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      margin-bottom: 3px;
+      flex-shrink: 0;
+    }
+
+    .day-badge {
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 10px;
+      font-weight: 600;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #fff;
+      margin-top: 1px;
+      line-height: 1.4;
+    }
+    .day-badge.planned {
+      background: transparent !important;
+      border: 2px dashed;
+      color: inherit;
+      padding: 0 3px;
+    }
+
+    /* ─── WEEK STATS CELL ─── */
+    .week-stats-cell {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 5px 3px;
+      border-left: 1px solid #e8ecf4;
+      border-bottom: 1px solid #f1f5f9;
+      background: #f7f9fc;
+    }
+    .week-stats-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 5px;
+      text-align: center;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .week-stats-empty {
+      font-size: 11px;
+      color: var(--subtle);
+      padding-top: 4px;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: 296px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); margin-bottom: 11px;
+    }
+
+    .compliance-pct { font-size: 46px; font-weight: 800; line-height: 1; letter-spacing: -.03em; }
+    .compliance-pct.good { color: var(--good); }
+    .compliance-pct.warn { color: var(--warn); }
+    .compliance-pct.bad  { color: var(--bad); }
+
+    .compliance-sub { font-size: 11px; color: var(--muted); margin-top: 2px; margin-bottom: 11px; }
+
+    .pbar-wrap { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: visible; position: relative; margin-bottom: 5px; }
+    .pbar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; max-width: 100%; }
+    .pbar-marker { position: absolute; top: -4px; width: 2px; height: 16px; background: #475569; border-radius: 1px; opacity: .5; }
+    .pbar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--subtle); margin-bottom: 11px; }
+
+    .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 7px; }
+    .status-badge.good { background: #dcfce7; color: #15803d; }
+    .status-badge.warn { background: #fef3c7; color: #b45309; }
+    .status-badge.bad  { background: #fee2e2; color: #b91c1c; }
+
+    .days-note { font-size: 11px; color: var(--muted); }
+
+    .proj-row { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; padding-top: 9px; border-top: 1px solid #f1f5f9; }
+    .proj-label { font-size: 11px; color: var(--muted); }
+    .proj-val { font-size: 13px; font-weight: 700; }
+
+    .loc-row { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+    .loc-row:last-child { margin-bottom: 0; }
+    .loc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .loc-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .loc-days { font-size: 11px; color: var(--muted); width: 24px; text-align: right; }
+    .loc-pct  { font-size: 12px; font-weight: 700; width: 34px; text-align: right; }
+
+    .week-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .week-table th { color: var(--subtle); font-weight: 600; padding: 3px 4px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+    .week-table td { padding: 4px 4px; border-bottom: 1px solid #f8fafc; }
+    .week-table tr:last-child td { border-bottom: none; }
+    .wdot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+
+    /* ─── MODALS ─── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(15,23,42,.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 900; padding: 20px;
+      backdrop-filter: blur(3px);
+      animation: fadeIn .15s ease;
+    }
+    .overlay.hidden { display: none; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.18);
+      padding: 22px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+      animation: slideUp .15s ease;
+    }
+    .modal-sm { max-width: 380px; }
+    .modal-md { max-width: 520px; }
+    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .modal-head h2 { font-size: 16px; font-weight: 700; }
+    .modal-close {
+      width: 28px; height: 28px; border: none; background: #f1f5f9;
+      border-radius: 7px; cursor: pointer; font-size: 14px; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .modal-close:hover { background: #e2e8f0; color: var(--text); }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9; }
+
+    /* Location pick buttons */
+    .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .loc-pick-btn {
+      padding: 9px 12px; border-radius: 9px; border: 2px solid transparent;
+      cursor: pointer; font-size: 12px; font-weight: 600;
+      color: #fff; transition: all .15s;
+      text-align: left; display: flex; align-items: center; gap: 5px;
+    }
+    .loc-pick-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+    .loc-pick-btn.active { outline: 3px solid rgba(0,0,0,.22); outline-offset: 2px; }
+    .primary-star { font-size: 10px; opacity: .8; }
+
+    /* Full-width option buttons (PTO, Not Working) */
+    .full-opt-btn {
+      width: 100%; padding: 9px 14px; border-radius: 9px;
+      border: 2px solid transparent; cursor: pointer;
+      font-size: 12px; font-weight: 600;
+      transition: all .15s; text-align: left;
+      display: flex; align-items: center; gap: 7px;
+      margin-top: 7px;
+    }
+    .full-opt-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.12); }
+    .full-opt-btn.active { outline: 3px solid rgba(0,0,0,.22); outline-offset: 2px; }
+    .pto-btn-style { background: #f59e0b; color: #fff; }
+    .pto-btn-style:hover { background: #d97706; }
+    .not-working-style { background: #f1f5f9; color: var(--muted); border-color: var(--border); }
+    .not-working-style:hover { background: #e2e8f0; }
+    .not-working-style.active { border-color: #94a3b8; }
+
+    .planned-pill {
+      font-size: 11px; font-weight: 600;
+      background: #fef3c7; color: #92400e;
+      border-radius: 10px; padding: 2px 8px;
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-bottom: 12px;
+    }
+    .week-note { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+
+    /* Settings */
+    .settings-section { margin-bottom: 20px; }
+    .settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+    .loc-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #f8fafc; border-radius: 9px; border: 1px solid var(--border); margin-bottom: 7px; }
+    .loc-item-swatch { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+    .loc-item-name { flex: 1; font-size: 13px; font-weight: 500; }
+    .primary-chip { font-size: 11px; font-weight: 700; background: #dbeafe; color: #1d4ed8; border-radius: 4px; padding: 2px 7px; }
+    .form-group { margin-bottom: 13px; }
+    .form-label { display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 5px; }
+    .form-input { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); outline: none; transition: border-color .15s; }
+    .form-input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+    .color-grid { display: flex; gap: 7px; flex-wrap: wrap; }
+    .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: all .15s; }
+    .color-swatch.active { border-color: #1e293b; transform: scale(1.15); }
+    .add-loc-form { background: #f8fafc; border: 1px solid var(--border); border-radius: 9px; padding: 13px; margin-top: 9px; }
+    .add-loc-form.hidden { display: none; }
+    .form-row { display: flex; gap: 7px; align-items: flex-end; }
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    input[type=range] { flex: 1; accent-color: var(--indigo); }
+    .slider-val { font-weight: 700; font-size: 14px; width: 40px; text-align: right; }
+    .check-label { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #374151; cursor: pointer; }
+    .check-label input { accent-color: var(--indigo); width: 14px; height: 14px; }
+
+    /* ─── TABLET ─── */
+    @media (max-width: 860px) {
+      body { overflow: auto; height: auto; }
+      .main { flex-direction: column; overflow: visible; }
+      .calendar-section { overflow: visible; }
+      .cal-scroll { flex: none; max-height: 70vh; }
+      .sidebar { width: 100%; overflow-y: visible; }
+    }
+
+    /* ─── MOBILE / iOS PWA ─── */
+    .tab-bar { display: none; }
+    .tab-btn {
+      flex: 1; background: none; border: none;
+      padding: 10px 8px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 3px;
+      font-size: 11px; font-weight: 600;
+      color: var(--subtle); cursor: pointer;
+      transition: color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { color: var(--indigo); }
+    .tab-btn svg { display: block; }
+
+    @media (max-width: 640px) {
+      body { height: 100dvh; overflow: hidden; }
+
+      .header {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: env(safe-area-inset-top);
+        min-height: calc(54px + env(safe-area-inset-top));
+        height: auto;
+      }
+
+      .main {
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 10px;
+        padding-bottom: calc(68px + env(safe-area-inset-bottom));
+        gap: 10px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .calendar-section { overflow: visible; }
+      .cal-scroll { flex: none; max-height: none; overflow: visible; }
+
+      .cal-nav { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+      .cal-nav-right { display: none; }
+
+      .cal-head-9, .cal-grid { grid-template-columns: 28px repeat(7, 1fr) 42px; }
+      .cal-day { min-height: 46px; padding: 4px 2px; }
+      .day-num { width: 18px; height: 18px; font-size: 10px; margin-bottom: 2px; }
+      .day-badge { font-size: 9px; padding: 0 2px; }
+      .week-btn-cell { padding: 3px 2px; }
+      .week-set-btn { width: 22px; height: 22px; }
+      .week-stats-badge { font-size: 10px; padding: 1px 3px; }
+      .week-stats-empty { font-size: 10px; }
+
+      .sidebar { width: 100%; overflow-y: visible; }
+
+      /* Bottom-sheet modals */
+      .overlay { align-items: flex-end; padding: 0; }
+      .modal {
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        padding: 20px 18px;
+        padding-bottom: calc(18px + env(safe-area-inset-bottom));
+        animation: slideUpSheet .22s ease;
+      }
+      @keyframes slideUpSheet {
+        from { transform: translateY(40px); opacity: 0; }
+        to   { transform: none; opacity: 1; }
+      }
+
+      /* Tab bar */
+      .tab-bar {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #fff;
+        border-top: 1px solid var(--border);
+        padding-bottom: env(safe-area-inset-bottom);
+        z-index: 200;
+        box-shadow: 0 -2px 12px rgba(0,0,0,.08);
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-title">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+      Work Location Tracker
+    </div>
+    <div class="header-subtitle">Rolling 8-week compliance dashboard</div>
+  </div>
+  <button class="btn btn-secondary" onclick="openSettings()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+    Settings
+  </button>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+  <!-- Calendar section -->
+  <div class="calendar-section">
+    <div class="cal-nav">
+      <div class="cal-nav-left">
+        <button class="btn-icon" onclick="changeMonth(-1)" title="Previous month">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="btn btn-ghost" onclick="goToToday()" style="padding:5px 11px;font-size:12px;">Today</button>
+        <button class="btn-icon" onclick="changeMonth(1)" title="Next month">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="cal-nav-right">
+        <div class="legend">
+          <div class="legend-item"><div class="leg-dot" style="background:#4f46e5;"></div><span>Actual</span></div>
+          <div class="legend-item"><div class="leg-dot planned"></div><span>Planned</span></div>
+          <div class="legend-item"><div class="leg-dot window"></div><span>8-wk window</span></div>
+          <div class="legend-item"><div class="leg-dot pto"></div><span>PTO</span></div>
+          <div class="legend-item">
+            <div style="width:10px;height:10px;border:1.5px solid #999;border-radius:3px;display:flex;align-items:center;justify-content:center;">
+              <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="3"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <span>Set week</span>
+          </div>
+          <div class="legend-item"><span style="font-size:11px;font-weight:700;color:#64748b;">8-wk %</span><span>= projected compliance</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- Multi-month scrollable calendar -->
+    <div class="cal-scroll" id="calScroll"></div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar"></div>
+
+</div>
+
+<!-- ═══ DAY MODAL ═══ -->
+<div class="overlay hidden" id="dayOverlay">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2 id="dayModalTitle">Set Location</h2>
+      <button class="modal-close" onclick="closeDayModal()">✕</button>
+    </div>
+    <div class="modal-sub" id="dayModalSub"></div>
+    <div id="dayPlannedPill"></div>
+    <div class="loc-grid" id="locGrid"></div>
+    <div id="dayExtraButtons"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeDayModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WEEK MODAL ═══ -->
+<div class="overlay hidden" id="weekOverlay">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h2 id="weekModalTitle">Set Week</h2>
+      <button class="modal-close" onclick="closeWeekModal()">✕</button>
+    </div>
+    <div class="modal-sub" id="weekModalSub"></div>
+    <p class="week-note">Sets Mon – Fri. You can still change individual days after.</p>
+    <div class="loc-grid" id="weekLocGrid"></div>
+    <button class="full-opt-btn pto-btn-style" onclick="applyWeekLocation('__pto__')">
+      🌴 PTO — entire week <span style="font-size:10px;opacity:.8;">(counts as primary)</span>
+    </button>
+    <button class="full-opt-btn not-working-style" onclick="clearWeek()">
+      ✕ Clear Week (remove Mon – Fri entries)
+    </button>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeWeekModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MOBILE TAB BAR ═══ -->
+<nav class="tab-bar">
+  <button class="tab-btn active" id="tabCalBtn" onclick="switchTab('cal')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Calendar
+  </button>
+  <button class="tab-btn" id="tabStatsBtn" onclick="switchTab('stats')">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    Stats
+  </button>
+</nav>
+
+<!-- ═══ SETTINGS MODAL ═══ -->
+<div class="overlay hidden" id="settingsOverlay">
+  <div class="modal modal-md">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="settings-section" style="margin-top:12px;">
+      <h3>Locations</h3>
+      <div id="settingsLocList"></div>
+      <button class="btn btn-ghost btn-sm" onclick="showAddForm()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Location
+      </button>
+      <div class="add-loc-form hidden" id="addLocForm">
+        <div class="form-group">
+          <label class="form-label">Location Name</label>
+          <input type="text" class="form-input" id="newLocName" placeholder="e.g. Main Office" onkeydown="if(event.key==='Enter')addLocation()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Color</label>
+          <div class="color-grid" id="colorGrid"></div>
+        </div>
+        <div class="form-group">
+          <label class="check-label">
+            <input type="checkbox" id="newLocPrimary">
+            Set as primary location (used for compliance %)
+          </label>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-primary btn-sm" onclick="addLocation()">Add</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelAddForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Compliance Threshold</h3>
+      <div class="form-group">
+        <label class="form-label">Minimum % at primary location — currently <strong><span id="thresholdLabel">51%</span></strong></label>
+        <div class="slider-row">
+          <input type="range" id="thresholdSlider" min="1" max="100" value="51" oninput="updateThreshold(this)">
+          <div class="slider-val" id="thresholdVal">51%</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeSettings()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ════════════════════════════════════════════════════════
+const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+const TODAY_STR  = fmtDate(TODAY);
+const PTO_ID     = '__pto__';
+const MONTH_NAMES = ['January','February','March','April','May','June','July',
+                     'August','September','October','November','December'];
+const DAY_COLORS  = ['#4f46e5','#059669','#d97706','#e11d48','#7c3aed',
+                     '#0891b2','#65a30d','#ea580c','#db2777','#0284c7'];
+
+let state = {
+  locations: [
+    { id: 'loc_a', name: 'Primary Office', isPrimary: true,  color: '#4f46e5' },
+    { id: 'loc_b', name: 'Remote Office',  isPrimary: false, color: '#059669' }
+  ],
+  entries: {},       // 'YYYY-MM-DD' -> { locationId }
+  threshold: 51,
+  viewYear:  TODAY.getFullYear(),
+  viewMonth: TODAY.getMonth(),
+  selectedDate: null,
+  selectedWeekSunday: null
+};
+
+let newLocColor = DAY_COLORS[2];
+
+// ════════════════════════════════════════════════════════
+//  PERSISTENCE
+// ════════════════════════════════════════════════════════
+function loadState() {
+  try {
+    const raw = localStorage.getItem('wlt_state2');
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch(e) {}
+  state.viewYear  = TODAY.getFullYear();
+  state.viewMonth = TODAY.getMonth();
+  state.selectedDate = null;
+  state.selectedWeekSunday = null;
+}
+
+function saveState() {
+  try { localStorage.setItem('wlt_state2', JSON.stringify(state)); } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════
+//  DATE UTILITIES
+// ════════════════════════════════════════════════════════
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function addDays(d, n) {
+  const r = new Date(d); r.setDate(r.getDate()+n); return r;
+}
+function fmtShort(d) {
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+function fmtLong(d) {
+  return d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+
+// Rolling 8-week window end = TODAY, start = TODAY - 55 days
+function windowStart() { return addDays(TODAY, -55); }
+
+function isFuture(ds) { return parseDate(ds) > TODAY; }
+
+// Helper: does this locationId count as "primary" for compliance?
+function isPrimaryOrPTO(locId, primaryId) {
+  return locId === primaryId || locId === PTO_ID;
+}
+
+// Projected rolling 8-week compliance as of a given date
+// (counts both actual past entries and future planned entries up to asOf)
+function projectedCompliance(asOf) {
+  const primary = state.locations.find(l => l.isPrimary) || state.locations[0];
+  if (!primary) return null;
+  const wStart = addDays(asOf, -55);
+  let prim = 0, total = 0;
+  for (let d = new Date(wStart); d <= asOf; d = addDays(d, 1)) {
+    const entry = state.entries[fmtDate(d)];
+    if (entry) {
+      total++;
+      if (isPrimaryOrPTO(entry.locationId, primary.id)) prim++;
+    }
+  }
+  return total > 0 ? { prim, total, pct: prim / total * 100 } : null;
+}
+
+// ════════════════════════════════════════════════════════
+//  CALENDAR RENDERING (multi-month scroll)
+// ════════════════════════════════════════════════════════
+function renderCalendars() {
+  const container = document.getElementById('calScroll');
+  let html = '';
+  for (let delta = -1; delta <= 1; delta++) {
+    let m = state.viewMonth + delta;
+    let y = state.viewYear;
+    if (m < 0)  { m = 11; y--; }
+    if (m > 11) { m = 0;  y++; }
+    html += renderMonth(y, m);
+  }
+  container.innerHTML = html;
+  container.scrollTop = 0;
+}
+
+function renderMonth(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+
+  // Build flat day list with week-start padding
+  const allDays = [];
+  const startDow = firstDay.getDay(); // 0 = Sunday
+  for (let i = startDow - 1; i >= 0; i--) {
+    allDays.push({ date: addDays(firstDay, -i - 1), other: true });
+  }
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    allDays.push({ date: new Date(year, month, d), other: false });
+  }
+  const remaining = (7 - (allDays.length % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    allDays.push({ date: new Date(year, month + 1, i), other: true });
+  }
+
+  // Group into 7-day weeks (each row = Sun..Sat)
+  const weeks = [];
+  for (let i = 0; i < allDays.length; i += 7) {
+    weeks.push(allDays.slice(i, i + 7));
+  }
+
+  const weeksHtml = weeks.map(week => {
+    const weekSunday   = week[0].date;
+    const weekSaturday = week[6].date;
+    return weekBtnCell(weekSunday) +
+           week.map(({ date, other }) => dayCell(date, other)).join('') +
+           weekStatsCell(weekSaturday);
+  }).join('');
+
+  return `
+    <div class="month-section">
+      <div class="month-label">${MONTH_NAMES[month]} ${year}</div>
+      <div class="cal-head-9">
+        <div class="cal-head-corner"></div>
+        <div class="cal-head-cell">Sun</div>
+        <div class="cal-head-cell">Mon</div>
+        <div class="cal-head-cell">Tue</div>
+        <div class="cal-head-cell">Wed</div>
+        <div class="cal-head-cell">Thu</div>
+        <div class="cal-head-cell">Fri</div>
+        <div class="cal-head-cell">Sat</div>
+        <div class="cal-head-stats">8-wk %</div>
+      </div>
+      <div class="cal-grid">${weeksHtml}</div>
+    </div>`;
+}
+
+function weekBtnCell(weekSunday) {
+  return `<div class="week-btn-cell">
+    <button class="week-set-btn" onclick="openWeekModal('${fmtDate(weekSunday)}')" title="Set location for Mon – Fri of this week">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    </button>
+  </div>`;
+}
+
+function weekStatsCell(weekSaturday) {
+  // Only show projected compliance for current week and future weeks
+  if (weekSaturday < TODAY) {
+    return `<div class="week-stats-cell"></div>`;
+  }
+
+  const result = projectedCompliance(weekSaturday);
+  if (!result) {
+    return `<div class="week-stats-cell"><span class="week-stats-empty">—</span></div>`;
+  }
+
+  const T   = state.threshold;
+  const cls = result.pct >= T ? 'good' : result.pct >= T - 5 ? 'warn' : 'bad';
+  const clr = { good: '#16a34a', warn: '#d97706', bad: '#dc2626' }[cls];
+  const bg  = { good: '#dcfce7', warn: '#fef3c7', bad: '#fee2e2' }[cls];
+
+  return `<div class="week-stats-cell">
+    <div class="week-stats-badge" style="color:${clr};background:${bg};">${result.pct.toFixed(0)}%</div>
+  </div>`;
+}
+
+function dayCell(d, other) {
+  const ds        = fmtDate(d);
+  const isToday   = ds === TODAY_STR;
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  const inWin     = !other && d >= windowStart() && d <= TODAY;
+  const future    = d > TODAY;
+
+  let cls = 'cal-day';
+  if (other)     cls += ' other-month';
+  if (isToday)   cls += ' today';
+  if (isWeekend) cls += ' weekend';
+  if (inWin)     cls += ' in-window';
+
+  const entry = state.entries[ds];
+  let badge = '';
+
+  if (entry) {
+    if (entry.locationId === PTO_ID) {
+      badge = future
+        ? `<span class="day-badge" style="background:transparent;border:2px dashed #d97706;color:#d97706;padding:0 3px;">🌴 PTO</span>`
+        : `<span class="day-badge" style="background:#f59e0b;">🌴 PTO</span>`;
+    } else {
+      const loc = state.locations.find(l => l.id === entry.locationId);
+      if (loc) {
+        badge = future
+          ? `<span class="day-badge planned" style="border-color:${loc.color};color:${loc.color};">${loc.name}</span>`
+          : `<span class="day-badge" style="background:${loc.color};">${loc.name}</span>`;
+      }
+    }
+  }
+
+  return `<div class="${cls}" onclick="openDayModal('${ds}')">
+    <div class="day-num">${d.getDate()}</div>
+    ${badge}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  STATS SIDEBAR
+// ════════════════════════════════════════════════════════
+function renderStats() {
+  const ws      = windowStart();
+  const primary = state.locations.find(l => l.isPrimary) || state.locations[0];
+  if (!primary) return;
+
+  // Actual entries in rolling 8-week window (past only)
+  const actualEntries = [];
+  for (let d = new Date(ws); d <= TODAY; d = addDays(d, 1)) {
+    const ds = fmtDate(d);
+    if (state.entries[ds]) actualEntries.push({ ds, ...state.entries[ds] });
+  }
+  const actualTotal   = actualEntries.length;
+  const actualPrimary = actualEntries.filter(e => isPrimaryOrPTO(e.locationId, primary.id)).length;
+  const actualPTO     = actualEntries.filter(e => e.locationId === PTO_ID).length;
+  const actualPct     = actualTotal > 0 ? (actualPrimary / actualTotal * 100) : null;
+
+  // 4-week projection (today-27 to today+28, actual + planned)
+  const projStart   = addDays(TODAY, -27);
+  const projEnd     = addDays(TODAY, 28);
+  const projEntries = [];
+  for (let d = new Date(projStart); d <= projEnd; d = addDays(d, 1)) {
+    const ds = fmtDate(d);
+    if (state.entries[ds]) projEntries.push({ ds, ...state.entries[ds] });
+  }
+  const projTotal   = projEntries.length;
+  const projPrimary = projEntries.filter(e => isPrimaryOrPTO(e.locationId, primary.id)).length;
+  const projPct     = projTotal > 0 ? (projPrimary / projTotal * 100) : null;
+
+  // Status helpers
+  const T = state.threshold;
+  const statusCls  = pct => pct === null ? 'bad' : pct >= T ? 'good' : pct >= T - 5 ? 'warn' : 'bad';
+  const statusText = pct => pct === null ? '— No Data' : pct >= T ? '✓ Compliant' : pct >= T - 5 ? '⚠ At Risk' : '✗ Non-Compliant';
+
+  const cls      = statusCls(actualPct);
+  const barColor = { good: '#16a34a', warn: '#d97706', bad: '#dc2626' }[cls];
+  const projCls  = statusCls(projPct);
+  const projClr  = { good: '#16a34a', warn: '#d97706', bad: '#dc2626' }[projCls];
+
+  // Location breakdown (actual window)
+  const breakdown = state.locations.map(loc => {
+    const days = actualEntries.filter(e => e.locationId === loc.id).length;
+    return { ...loc, days, pct: actualTotal > 0 ? days / actualTotal * 100 : null };
+  });
+  const ptoDays = actualPTO;
+
+  // Weekly breakdown (8 × 7-day chunks, oldest first)
+  const weeks = [];
+  for (let w = 7; w >= 0; w--) {
+    const wEnd   = addDays(TODAY, -(w * 7));
+    const wStart = addDays(wEnd, -6);
+    const loopFrom = wStart < ws ? new Date(ws) : new Date(wStart);
+    let wPrim = 0, wTotal = 0;
+    for (let d = new Date(loopFrom); d <= wEnd && d <= TODAY; d = addDays(d, 1)) {
+      const entry = state.entries[fmtDate(d)];
+      if (entry) {
+        wTotal++;
+        if (isPrimaryOrPTO(entry.locationId, primary.id)) wPrim++;
+      }
+    }
+    weeks.push({ start: wStart, end: wEnd, primary: wPrim, total: wTotal,
+      pct: wTotal > 0 ? wPrim / wTotal * 100 : null });
+  }
+
+  document.getElementById('sidebar').innerHTML = `
+
+    <div class="card">
+      <div class="card-title">8-Week Rolling Compliance</div>
+      <div style="font-size:10px;color:var(--subtle);margin-bottom:8px;">${fmtShort(ws)} – ${fmtShort(TODAY)}</div>
+      <div class="compliance-pct ${cls}">${actualPct !== null ? actualPct.toFixed(1)+'%' : '--'}</div>
+      <div class="compliance-sub">at <strong>${primary.name}</strong> + PTO</div>
+      <div class="pbar-wrap">
+        <div class="pbar-fill" style="width:${actualPct !== null ? Math.min(100,actualPct) : 0}%;background:${barColor};"></div>
+        <div class="pbar-marker" style="left:${T}%;"></div>
+      </div>
+      <div class="pbar-labels"><span>0%</span><span>${T}% required</span><span>100%</span></div>
+      <div class="status-badge ${cls}">${statusText(actualPct)}</div>
+      <div class="days-note">${actualPrimary} of ${actualTotal} logged days${actualPTO > 0 ? ` (incl. ${actualPTO} PTO)` : ''}</div>
+      <div class="proj-row">
+        <div>
+          <div class="proj-label">4-wk projection <span style="font-size:10px;">(${fmtShort(projStart)}–${fmtShort(projEnd)})</span></div>
+          <div style="font-size:10px;color:var(--subtle);">Actual + planned entries</div>
+        </div>
+        <div class="proj-val" style="color:${projClr};">${projPct !== null ? projPct.toFixed(1)+'%' : '--'}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Location Breakdown (8-wk)</div>
+      ${breakdown.map(loc => `
+        <div class="loc-row">
+          <div class="loc-dot" style="background:${loc.color};"></div>
+          <div class="loc-name">${loc.name}${loc.isPrimary ? ' <span style="font-size:9px;color:#94a3b8;">★</span>' : ''}</div>
+          <div class="loc-days">${loc.days}d</div>
+          <div class="loc-pct">${loc.pct !== null ? loc.pct.toFixed(0)+'%' : '--'}</div>
+        </div>`).join('')}
+      ${ptoDays > 0 ? `
+        <div class="loc-row">
+          <div class="loc-dot" style="background:#f59e0b;"></div>
+          <div class="loc-name">PTO <span style="font-size:9px;color:#94a3b8;">→ primary</span></div>
+          <div class="loc-days">${ptoDays}d</div>
+          <div class="loc-pct">${(ptoDays/actualTotal*100).toFixed(0)}%</div>
+        </div>` : ''}
+      ${actualTotal === 0 ? '<div style="font-size:12px;color:var(--muted);">No entries in this window yet.</div>' : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Weekly Breakdown (actual)</div>
+      <table class="week-table">
+        <thead>
+          <tr><th>Week</th><th style="text-align:center;">Prim.</th><th style="text-align:center;">Total</th><th style="text-align:right;">%</th></tr>
+        </thead>
+        <tbody>
+          ${weeks.map(w => {
+            const wCls = w.pct === null ? '' : w.pct >= T ? 'good' : w.pct >= T-5 ? 'warn' : 'bad';
+            const dotClr = { good:'#16a34a', warn:'#d97706', bad:'#dc2626' }[wCls] || '#e2e8f0';
+            const isCurr = w.end >= TODAY && w.start <= TODAY;
+            return `<tr style="${isCurr ? 'font-weight:700;' : ''}">
+              <td style="font-size:10px;">${fmtShort(w.start)}–${fmtShort(w.end)}</td>
+              <td style="text-align:center;">${w.primary}</td>
+              <td style="text-align:center;">${w.total}</td>
+              <td style="text-align:right;"><span class="wdot" style="background:${dotClr};"></span>${w.pct !== null ? w.pct.toFixed(0)+'%' : '--'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  DAY MODAL
+// ════════════════════════════════════════════════════════
+function openDayModal(ds) {
+  state.selectedDate = ds;
+  const d     = parseDate(ds);
+  const fut   = isFuture(ds);
+  const entry = state.entries[ds];
+
+  document.getElementById('dayModalTitle').textContent = fut ? 'Plan Location' : 'Log Location';
+  document.getElementById('dayModalSub').textContent   = fmtLong(d);
+  document.getElementById('dayPlannedPill').innerHTML  = fut
+    ? `<div class="planned-pill">📅 Future date — will display as <em>planned</em></div>` : '';
+
+  // Location pick buttons (2-column grid)
+  document.getElementById('locGrid').innerHTML = state.locations.map(loc =>
+    `<button class="loc-pick-btn${entry?.locationId === loc.id ? ' active' : ''}"
+             style="background:${loc.color};"
+             onclick="selectLocation('${loc.id}')">
+       ${loc.isPrimary ? '<span class="primary-star">★</span>' : ''}${loc.name}
+     </button>`
+  ).join('');
+
+  // Full-width options below grid: PTO + Not Working
+  const isPTO = entry?.locationId === PTO_ID;
+  document.getElementById('dayExtraButtons').innerHTML = `
+    <button class="full-opt-btn pto-btn-style${isPTO ? ' active' : ''}" onclick="selectLocation('__pto__')">
+      🌴 PTO <span style="font-size:10px;opacity:.8;">(counts as primary)</span>
+    </button>
+    <button class="full-opt-btn not-working-style${!entry ? ' active' : ''}" onclick="clearEntry()">
+      ✕ Not Working / No Entry
+    </button>`;
+
+  document.getElementById('dayOverlay').classList.remove('hidden');
+}
+
+function closeDayModal() {
+  document.getElementById('dayOverlay').classList.add('hidden');
+  state.selectedDate = null;
+}
+
+function selectLocation(locId) {
+  if (!state.selectedDate) return;
+  state.entries[state.selectedDate] = { locationId: locId };
+  saveState();
+  closeDayModal();
+  renderCalendars();
+  renderStats();
+}
+
+function clearEntry() {
+  if (!state.selectedDate) return;
+  delete state.entries[state.selectedDate];
+  saveState();
+  closeDayModal();
+  renderCalendars();
+  renderStats();
+}
+
+// ════════════════════════════════════════════════════════
+//  WEEK MODAL
+// ════════════════════════════════════════════════════════
+function openWeekModal(weekSundayStr) {
+  state.selectedWeekSunday = weekSundayStr;
+  const sunday = parseDate(weekSundayStr);
+  const monday = addDays(sunday, 1);
+  const friday = addDays(sunday, 5);
+
+  document.getElementById('weekModalTitle').textContent = 'Set Week';
+  document.getElementById('weekModalSub').textContent   =
+    `${fmtShort(monday)} – ${fmtShort(friday)}`;
+
+  document.getElementById('weekLocGrid').innerHTML = state.locations.map(loc =>
+    `<button class="loc-pick-btn" style="background:${loc.color};" onclick="applyWeekLocation('${loc.id}')">
+       ${loc.isPrimary ? '<span class="primary-star">★</span>' : ''}${loc.name}
+     </button>`
+  ).join('');
+
+  document.getElementById('weekOverlay').classList.remove('hidden');
+}
+
+function closeWeekModal() {
+  document.getElementById('weekOverlay').classList.add('hidden');
+  state.selectedWeekSunday = null;
+}
+
+// Set Mon-Fri of selected week to a location
+function applyWeekLocation(locId) {
+  if (!state.selectedWeekSunday) return;
+  const sunday = parseDate(state.selectedWeekSunday);
+  for (let i = 1; i <= 5; i++) { // Mon=1 … Fri=5
+    state.entries[fmtDate(addDays(sunday, i))] = { locationId: locId };
+  }
+  saveState();
+  closeWeekModal();
+  renderCalendars();
+  renderStats();
+}
+
+// Clear Mon-Fri of selected week
+function clearWeek() {
+  if (!state.selectedWeekSunday) return;
+  const sunday = parseDate(state.selectedWeekSunday);
+  for (let i = 1; i <= 5; i++) {
+    delete state.entries[fmtDate(addDays(sunday, i))];
+  }
+  saveState();
+  closeWeekModal();
+  renderCalendars();
+  renderStats();
+}
+
+// ════════════════════════════════════════════════════════
+//  CALENDAR NAVIGATION
+// ════════════════════════════════════════════════════════
+function changeMonth(delta) {
+  state.viewMonth += delta;
+  if (state.viewMonth < 0)  { state.viewMonth = 11; state.viewYear--; }
+  if (state.viewMonth > 11) { state.viewMonth = 0;  state.viewYear++; }
+  renderCalendars();
+}
+
+function goToToday() {
+  state.viewYear  = TODAY.getFullYear();
+  state.viewMonth = TODAY.getMonth();
+  renderCalendars();
+}
+
+// ════════════════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════════════════
+function openSettings() {
+  renderSettingsList();
+  renderColorGrid();
+  document.getElementById('thresholdSlider').value     = state.threshold;
+  document.getElementById('thresholdVal').textContent  = state.threshold + '%';
+  document.getElementById('thresholdLabel').textContent = state.threshold + '%';
+  document.getElementById('settingsOverlay').classList.remove('hidden');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.add('hidden');
+  document.getElementById('addLocForm').classList.add('hidden');
+  document.getElementById('newLocName').value = '';
+  document.getElementById('newLocPrimary').checked = false;
+}
+function renderSettingsList() {
+  document.getElementById('settingsLocList').innerHTML = state.locations.map(loc => `
+    <div class="loc-item">
+      <div class="loc-item-swatch" style="background:${loc.color};"></div>
+      <div class="loc-item-name">${loc.name}</div>
+      ${loc.isPrimary
+        ? '<span class="primary-chip">Primary</span>'
+        : `<button class="btn btn-ghost btn-sm" onclick="setPrimary('${loc.id}')">Set Primary</button>`}
+      <button class="btn btn-danger btn-sm" onclick="deleteLocation('${loc.id}')">Delete</button>
+    </div>`).join('');
+}
+function renderColorGrid() {
+  document.getElementById('colorGrid').innerHTML = DAY_COLORS.map(c =>
+    `<div class="color-swatch${c === newLocColor ? ' active' : ''}" style="background:${c};" onclick="pickColor('${c}')"></div>`
+  ).join('');
+}
+function pickColor(c) { newLocColor = c; renderColorGrid(); }
+
+function showAddForm() {
+  const used = state.locations.map(l => l.color);
+  const free = DAY_COLORS.find(c => !used.includes(c));
+  if (free) { newLocColor = free; }
+  renderColorGrid();
+  document.getElementById('addLocForm').classList.remove('hidden');
+  document.getElementById('newLocName').focus();
+}
+function cancelAddForm() {
+  document.getElementById('addLocForm').classList.add('hidden');
+  document.getElementById('newLocName').value = '';
+  document.getElementById('newLocPrimary').checked = false;
+}
+function addLocation() {
+  const name = document.getElementById('newLocName').value.trim();
+  if (!name) { document.getElementById('newLocName').focus(); return; }
+  const isPrimary = document.getElementById('newLocPrimary').checked;
+  if (isPrimary) state.locations.forEach(l => l.isPrimary = false);
+  state.locations.push({ id: 'loc_' + Date.now(), name, isPrimary, color: newLocColor });
+  if (!state.locations.some(l => l.isPrimary)) state.locations[0].isPrimary = true;
+  saveState();
+  cancelAddForm();
+  renderSettingsList();
+  renderCalendars();
+  renderStats();
+}
+function deleteLocation(id) {
+  if (state.locations.length <= 1) { alert('Need at least one location.'); return; }
+  if (!confirm('Delete this location? All logged days using it will be cleared.')) return;
+  Object.keys(state.entries).forEach(ds => {
+    if (state.entries[ds].locationId === id) delete state.entries[ds];
+  });
+  state.locations = state.locations.filter(l => l.id !== id);
+  if (!state.locations.some(l => l.isPrimary)) state.locations[0].isPrimary = true;
+  saveState();
+  renderSettingsList();
+  renderCalendars();
+  renderStats();
+}
+function setPrimary(id) {
+  state.locations.forEach(l => l.isPrimary = l.id === id);
+  saveState();
+  renderSettingsList();
+  renderStats();
+}
+function updateThreshold(el) {
+  const v = parseInt(el.value);
+  state.threshold = v;
+  document.getElementById('thresholdVal').textContent  = v + '%';
+  document.getElementById('thresholdLabel').textContent = v + '%';
+  saveState();
+  renderCalendars(); // re-render stats cells on calendar
+  renderStats();
+}
+
+// ════════════════════════════════════════════════════════
+//  MOBILE TAB SWITCHING
+// ════════════════════════════════════════════════════════
+function switchTab(tab) {
+  if (window.innerWidth > 640) return;
+  document.getElementById('tabCalBtn').classList.toggle('active', tab === 'cal');
+  document.getElementById('tabStatsBtn').classList.toggle('active', tab === 'stats');
+  document.querySelector('.calendar-section').style.display = tab === 'cal'   ? '' : 'none';
+  document.getElementById('sidebar').style.display          = tab === 'stats' ? '' : 'none';
+}
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 640) {
+    document.querySelector('.calendar-section').style.display = '';
+    document.getElementById('sidebar').style.display = '';
+  }
+});
+
+// ════════════════════════════════════════════════════════
+//  KEYBOARD & OVERLAY CLOSE
+// ════════════════════════════════════════════════════════
+document.getElementById('dayOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDayModal();
+});
+document.getElementById('weekOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeWeekModal();
+});
+document.getElementById('settingsOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSettings();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDayModal(); closeWeekModal(); closeSettings(); }
+});
+
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
+loadState();
+renderCalendars();
+renderStats();
+</script>
+</body>
+</html>
